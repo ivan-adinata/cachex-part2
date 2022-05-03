@@ -1,3 +1,4 @@
+import random
 
 class Player:
     FIRST_PLAYER = "Red"
@@ -14,16 +15,32 @@ class Player:
         self.player = player
         self.n = n
         self.turn = 0
+        self.opponentMove = ()
         self.possibleMoves = []
         self.hexTaken = []
+        self.state = []
 
+        isOdd = (n % 2 != 0)
+        for row in range(n):
+            for column in range(n):
+                if not (isOdd and (row == n//2) and (column == n//2)):
+                    self.possibleMoves.append((row, column))
 
     def action(self):
         """
         Called at the beginning of your turn. Based on the current state
         of the game, select an action to play.
         """
-        # put your code here
+        if self.turn == 0:
+            if not (self.player == Player.FIRST_PLAYER):
+                if random.randint(0, 1) == 0:
+                    return ("STEAL",)
+            chosen = random.choice(self.possibleMoves)
+            return ("PLACE", chosen[0], chosen[1])
+        else:
+            chosen = random.choice(self.possibleMoves)
+            return ("PLACE", chosen[0], chosen[1])
+
     
     def turn(self, player, action):
         """
@@ -36,5 +53,16 @@ class Player:
         the same as what your player returned from the action method
         above. However, the referee has validated it at this point.
         """
-        # put your code here
+        if self.player == player:
+            if action[0] == 'STEAL':
+
+            if action[0] == 'PLACE':
+
+            self.turn += 1
+        else:
+            self.opponentMove = action
+            if action[0] == "STEAL":
+
+            if action[0] == 'PLACE':
+
 

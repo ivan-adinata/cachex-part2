@@ -17,7 +17,6 @@ class Player:
         self.possibleMoves = []
         self.hexTaken = []
 
-
     def action(self):
         """
         Called at the beginning of your turn. Based on the current state
