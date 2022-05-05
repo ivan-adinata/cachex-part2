@@ -2,6 +2,7 @@ import random
 
 class Player:
     FIRST_PLAYER = "Red"
+    possibleMoves = []
 
     def __init__(self, player, n):
         """
@@ -16,9 +17,8 @@ class Player:
         self.n = n
         self.turn = 0
         self.opponentMove = ()
-        self.possibleMoves = []
+        self.lastMove = ()
         self.hexTaken = []
-        self.state = []
 
         isOdd = (n % 2 != 0)
         for row in range(n):
@@ -55,14 +55,37 @@ class Player:
         """
         if self.player == player:
             if action[0] == 'STEAL':
-
-            if action[0] == 'PLACE':
-
+                self.steel(self.opponentMove)
+            elif action[0] == 'PLACE':
+                self.lastMove = (action[1], action[2])
+                self.place(self.lastMove)
             self.turn += 1
         else:
             self.opponentMove = action
             if action[0] == "STEAL":
+                self.remove(self.lastMove)
+            elif action[0] == 'PLACE':
+                self.opponentMove = (action[1], action[2])
+                self.capture(self.opponentMove)
 
-            if action[0] == 'PLACE':
+    def steel(self, coordinate):
+        new_coordinate = (coordinate[1], coordinate[0])
+        self.lastMove = new_coordinate
+        self.place(new_coordinate)
 
+    def place(self, coordinate):
+        self.hexTaken.append(coordinate)
+        Player.possibleMoves.remove(coordinate)
+
+    def remove(self, coordinate):
+        self.hexTaken.remove(coordinate)
+        Player.possibleMoves.append(coordinate)
+
+    def capture(self, coordinate):
+        """
+        create a capture function, wehere it checks all 4 sides for a diamond pattern,
+        if there is a diamond pattern in any side, remove the stones.
+
+        this is called in opponent.turn(), so remove from self.hexTaken
+        """
 
