@@ -131,27 +131,15 @@ class Player:
                 # remove capture hexes from hex taken
                 # add capture to possible move
                 for hex in capturedHex:
-                    self.hexTaken.pop(hex)
-                    self.possibleMoves[hex] = None
-
-
-
-
-
-
-
-                self.opponentMove = (action[1], action[2])
-                self.possibleMoves = [hex for hex in self.possibleMoves if (hex.r, hex.q) != self.opponentMove]
-                # Remove hexes if there are any captures
-                for hex in self.capture(self.opponentMove):
                     print()
                     print("REMOVE = ", hex)
                     print()
-                    self.remove(hex)
+                    self.hexTaken.pop(hex)
+                    self.possibleMoves[hex] = None
         
         # Update evalScores in possibleMoves
         for hex in self.possibleMoves:
-            hex.evalScore = self.evalFunction(hex)
+            self.possibleMoves[hex] = self.evalFunction(hex)
 
     def invert(self, hexCoordinate):
         return (hexCoordinate[1], hexCoordinate[0])
