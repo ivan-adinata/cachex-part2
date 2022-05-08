@@ -20,17 +20,15 @@ class Player:
         self.numTurns = 0
         self.opponentMove = ()
         self.lastMove = ()
-        self.hexTaken = {}
+        self.hexTaken = []
         self.possibleMoves = {}
 
         for row in range(n):
             for column in range(n):
-                # Last element represents eval function
+                # Value represents eval function
                 self.possibleMoves[(row, column)] = None
         if n % 2 != 0:
-            # self.possibleMoves.remove((n // 2, n // 2))
-            # self.possibleMoves.pop(((n // 2 - 1) * n) + (n // 2))
-            self.possibleMoves.pop((self.n//2 , self.n//2))
+            self.possibleMoves.pop((self.n // 2 , self.n // 2))
 
     def action(self):
         """
@@ -42,7 +40,7 @@ class Player:
             # Choose random position along start edge
             start = random.randint(0, self.n - 1)
             if self.player == Player.FIRST_PLAYER:
-                chosen = [0, start, None]
+                chosen = (0, start)
                 if self.n % 2 != 0:
                     self.possibleMoves[(self.n//2 , self.n//2)] = None
             else:
@@ -50,9 +48,10 @@ class Player:
                 if self.opponentMove[1] == 0:
                     return ("STEAL",)
                 else:
-                    chosen = [start, 0, None]
+                    chosen = (start, 0)
         else:
-            chosen = max(self.possibleMoves, key=lambda hex: hex[2])
+            # chosen = max(self.possibleMoves, key=lambda hex: hex[2])
+            chosen = max(self.possibleMoves, key=self.possibleMoves.get)
         return ("PLACE", chosen[0], chosen[1])
     
     def turn(self, player, action):
@@ -69,80 +68,42 @@ class Player:
 
         if self.player == player:
             if action[0] == 'STEAL':
-                # add opponent move into possibleMove
                 self.possibleMoves[self.opponentMove] = None
-
-                # find inverted hex
                 invertedHex = self.invert(self.opponentMove)
-
-                # update last move
                 self.lastMove = invertedHex
-
-                # add invertedHex to hex taken
-                self.hexTaken[invertedHex] = None
-
-                # remove invertedHex from PossibleMove
                 self.possibleMoves.pop(invertedHex)
-
+                self.hexTaken.append(invertedHex)
             elif action[0] == 'PLACE':
-                # update last move
                 self.lastMove = (action[1], action[2])
-
-                # remove action from possibleMove
                 self.possibleMoves.pop(self.lastMove)
-
-                # put in hex taken
-                self.hexTaken[self.lastMove] = None
-
-                # find capture
-                hexCapture = self.capture(self.lastMove, player)
-
-                # add capture hexes to possiblemove
-                for hex in hexCapture:
+                self.hexTaken.append(self.lastMove)
+                # Add capture hexes to possibleMoves
+                for hex in self.capture(self.lastMove, player):
                     self.possibleMoves[hex] = None
             self.numTurns += 1
         else:
             if action[0] == "STEAL":
-                # add lastMove into possibleMove
                 self.possibleMoves[self.lastMove] = None
-
-                # remove lastMove from hexTaken
-                self.hexTaken.pop(self.lastMove)
-
-                # find inverted hex
+                self.hexTaken.remove(self.lastMove)
                 invertedHex = self.invert(self.opponentMove)
-
-                # update opponentMove
                 self.opponentMove = invertedHex
-
-                # remove inverted Hex from possible move
                 self.possibleMoves.pop(invertedHex)
-
             elif action[0] == 'PLACE':
-                # opponent move update
                 self.opponentMove = (action[1], action[2])
-
-                # remove action from possibleMove
                 self.possibleMoves.pop(self.opponentMove)
-
-                # find capture
-                capturedHex = self.capture(self.opponentMove, player)
-
-                # remove capture hexes from hex taken
-                # add capture to possible move
-                for hex in capturedHex:
+                for hex in self.capture(self.opponentMove, player):
                     print()
                     print("REMOVE = ", hex)
                     print()
-                    self.hexTaken.pop(hex)
+                    self.hexTaken.remove(hex)
                     self.possibleMoves[hex] = None
         
         # Update evalScores in possibleMoves
-        for hex in self.possibleMoves:
+        for hex in self.possibleMoves.keys():
             self.possibleMoves[hex] = self.evalFunction(hex)
 
-    def invert(self, hexCoordinate):
-        return (hexCoordinate[1], hexCoordinate[0])
+    def invert(self, coordinate):
+        return (coordinate[1], coordinate[0])
 
     def capture(self, coordinate, player):
         """
@@ -240,11 +201,11 @@ class Player:
         if self.player == Player.FIRST_PLAYER:
             for coordinate in self.hexTaken:
                 total += coordinate[1]
-            return abs(hex.q - (total / len(self.hexTaken)))
+            return abs(hex[1] - (total / len(self.hexTaken)))
         else:
             for coordinate in self.hexTaken:
                 total += coordinate[0]
-            return abs(hex.r - (total / len(self.hexTaken)))
+            return abs(hex[0] - (total / len(self.hexTaken)))
 
     def heuristic2(self, hex):
         """
@@ -253,11 +214,11 @@ class Player:
         tokens = 0
         if self.player == Player.FIRST_PLAYER:
             for coordinate in self.hexTaken:
-                if coordinate[0] == hex.r:
+                if coordinate[0] == hex[0]:
                     tokens += 1
         else:
             for coordinate in self.hexTaken:
-                if coordinate[1] == hex.q:
+                if coordinate[1] == hex[1]:
                     tokens += 1
 
         # Inverse relationship; the less tokens, the higher the value
@@ -267,7 +228,7 @@ class Player:
         """
         Calculates the number of enemy tokens that can be captured by placing a token
         """
-        return len(self.capture((hex.r, hex.q)))
+        return len(self.capture(hex, self.player))
 
     def blockingHeuristic(self, hex):
         # might have to track enemy path
