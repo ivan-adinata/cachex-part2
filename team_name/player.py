@@ -1,7 +1,7 @@
 from os import remove
 import random
 from itertools import permutations
-from GreedyAgent.hex import Hex
+from team_name.hex import Hex
 
 class Player:
     FIRST_PLAYER = "red"
@@ -20,17 +20,17 @@ class Player:
         self.numTurns = 0
         self.opponentMove = ()
         self.lastMove = ()
-        self.hexTaken = []
-        self.possibleMoves = []
+        self.hexTaken = {}
+        self.possibleMoves = {}
 
         for row in range(n):
             for column in range(n):
                 # Last element represents eval function
-                self.possibleMoves.append(Hex(row, column, None))
+                self.possibleMoves[(row, column)] = None
         if n % 2 != 0:
             # self.possibleMoves.remove((n // 2, n // 2))
             # self.possibleMoves.pop(((n // 2 - 1) * n) + (n // 2))
-            self.possibleMoves.pop((n ** 2) // 2)
+            self.possibleMoves.pop((self.n//2 , self.n//2))
 
     def action(self):
         """
@@ -42,18 +42,18 @@ class Player:
             # Choose random position along start edge
             start = random.randint(0, self.n - 1)
             if self.player == Player.FIRST_PLAYER:
-                chosen = self.getHex(0, start)
+                chosen = [0, start, None]
                 if self.n % 2 != 0:
-                    self.possibleMoves.append(Hex(self.n // 2, self.n // 2, None))
+                    self.possibleMoves[(self.n//2 , self.n//2)] = None
             else:
                 # print(self.opponentMove)
                 if self.opponentMove[1] == 0:
                     return ("STEAL",)
                 else:
-                    chosen = self.getHex(start, 0)
+                    chosen = [start, 0, None]
         else:
-            chosen = max(self.possibleMoves, key=lambda hex: hex.evalScore)
-        return ("PLACE", chosen.r, chosen.q)
+            chosen = max(self.possibleMoves, key=lambda hex: hex[2])
+        return ("PLACE", chosen[0], chosen[1])
     
     def turn(self, player, action):
         """
@@ -69,16 +69,77 @@ class Player:
 
         if self.player == player:
             if action[0] == 'STEAL':
-                self.steal(self.opponentMove)
+                # add opponent move into possibleMove
+                self.possibleMoves[self.opponentMove] = None
+
+                # find inverted hex
+                invertedHex = self.invert(self.opponentMove)
+
+                # update last move
+                self.lastMove = invertedHex
+
+                # add invertedHex to hex taken
+                self.hexTaken[invertedHex] = None
+
+                # remove invertedHex from PossibleMove
+                self.possibleMoves.pop(invertedHex)
+
             elif action[0] == 'PLACE':
+                # update last move
                 self.lastMove = (action[1], action[2])
-                self.place(self.lastMove)
+
+                # remove action from possibleMove
+                self.possibleMoves.pop(self.lastMove)
+
+                # put in hex taken
+                self.hexTaken[self.lastMove] = None
+
+                # find capture
+                hexCapture = self.capture(self.lastMove, player)
+
+                # add capture hexes to possiblemove
+                for hex in hexCapture:
+                    self.possibleMoves[hex] = None
             self.numTurns += 1
         else:
             if action[0] == "STEAL":
-                self.remove(self.lastMove)
-                self.opponentMove = self.lastMove
+                # add lastMove into possibleMove
+                self.possibleMoves[self.lastMove] = None
+
+                # remove lastMove from hexTaken
+                self.hexTaken.pop(self.lastMove)
+
+                # find inverted hex
+                invertedHex = self.invert(self.opponentMove)
+
+                # update opponentMove
+                self.opponentMove = invertedHex
+
+                # remove inverted Hex from possible move
+                self.possibleMoves.pop(invertedHex)
+
             elif action[0] == 'PLACE':
+                # opponent move update
+                self.opponentMove = (action[1], action[2])
+
+                # remove action from possibleMove
+                self.possibleMoves.pop(self.opponentMove)
+
+                # find capture
+                capturedHex = self.capture(self.opponentMove, player)
+
+                # remove capture hexes from hex taken
+                # add capture to possible move
+                for hex in capturedHex:
+                    self.hexTaken.pop(hex)
+                    self.possibleMoves[hex] = None
+
+
+
+
+
+
+
                 self.opponentMove = (action[1], action[2])
                 self.possibleMoves = [hex for hex in self.possibleMoves if (hex.r, hex.q) != self.opponentMove]
                 # Remove hexes if there are any captures
@@ -92,29 +153,10 @@ class Player:
         for hex in self.possibleMoves:
             hex.evalScore = self.evalFunction(hex)
 
-    def getHex(self, r, q):
-        for hex in self.possibleMoves:
-            if r == hex.r and q == hex.q:
-                return hex
+    def invert(self, hexCoordinate):
+        return (hexCoordinate[1], hexCoordinate[0])
 
-    def place(self, coordinate):
-        self.hexTaken.append(coordinate)
-        # Remove hex in possibleMoves
-        # self.possibleMoves.remove(self.getHex(coordinate[0], coordinate[1]))
-        self.possibleMoves = [hex for hex in self.possibleMoves if (hex.r, hex.q) != coordinate]
-        # for hex in self.possibleMoves:
-        #     print((hex.r, hex.q))
-
-    def steal(self, coordinate):
-        new_coordinate = (coordinate[1], coordinate[0])
-        self.lastMove = new_coordinate
-        self.place(new_coordinate)
-
-    def remove(self, coordinate):
-        self.hexTaken.remove(coordinate)
-        self.possibleMoves.append(Hex(coordinate[0], coordinate[1], None))
-
-    def capture(self, coordinate):
+    def capture(self, coordinate, player):
         """
         Returns a list of hexes to be removed as a result of capturing
         """
@@ -123,34 +165,71 @@ class Player:
 
         for comb in permutations([-1, 0, 1], 2):
             pos = (coordinate[0] + comb[0], coordinate[1] + comb[1])
-            if pos in self.hexTaken:
-                axialPos = (pos[0], pos[1], -pos[0] - pos[1])
-                axialDif = (axialPos[0] - axialCentre[0], axialPos[1] - axialCentre[1], axialPos[2] - axialCentre[2])
 
-                neighbourADif = (axialDif[1], axialDif[2], axialDif[0])
-                neighbourA = (axialCentre[0] + neighbourADif[0], axialCentre[1] + neighbourADif[1], axialCentre[2] + neighbourADif[2])
-                neighbourADoubled = (neighbourA[0], neighbourA[1])
+            if self.player == player:
+                if self.inOpponentHex(pos):
+                    axialPos = (pos[0], pos[1], -pos[0] - pos[1])
+                    axialDif = (
+                    axialPos[0] - axialCentre[0], axialPos[1] - axialCentre[1], axialPos[2] - axialCentre[2])
 
-                neighbourBDif = (axialDif[0] + neighbourADif[0], axialDif[1] + neighbourADif[1], axialDif[2] + neighbourADif[2])
-                neighbourB = (axialCentre[0] + neighbourBDif[0], axialCentre[1] + neighbourBDif[1], axialCentre[2] + neighbourBDif[2])
-                neighbourBDoubled = (neighbourB[0], neighbourB[1])
+                    neighbourADif = (axialDif[1], axialDif[2], axialDif[0])
+                    neighbourA = (axialCentre[0] + neighbourADif[0], axialCentre[1] + neighbourADif[1],
+                                  axialCentre[2] + neighbourADif[2])
+                    neighbourADoubled = (neighbourA[0], neighbourA[1])
 
-                if neighbourADoubled in self.hexTaken:
-                    if not (neighbourBDoubled in self.hexTaken or neighbourBDoubled in self.possibleMoves) and self.hexInBoard(neighbourBDoubled):
-                        #print(f'REMOVE ({pos[0]}, {pos[1]}) and ({neighbourADoubled[0]}, {neighbourADoubled[1]}) from ({neighbourBDoubled[0]}, {neighbourBDoubled[1]})')
-                        removeHex.add(pos)
-                        removeHex.add(neighbourADoubled)
-                if neighbourBDoubled in self.hexTaken:
-                    captureHex = (axialCentre[0] + axialDif[0] + neighbourBDif[0], axialCentre[1] + axialDif[1] + neighbourBDif[1])
-                    if not (captureHex in self.hexTaken or captureHex in self.possibleMoves) and self.hexInBoard(captureHex):
-                        #print(f'REMOVE ({pos[0]}, {pos[1]}) and ({neighbourBDoubled[0]}, {neighbourBDoubled[1]}) from ({captureHex[0]}, {captureHex[1]})')
-                        removeHex.add(pos)
-                        removeHex.add(neighbourBDoubled)
+                    neighbourBDif = (
+                    axialDif[0] + neighbourADif[0], axialDif[1] + neighbourADif[1], axialDif[2] + neighbourADif[2])
+                    neighbourB = (axialCentre[0] + neighbourBDif[0], axialCentre[1] + neighbourBDif[1],
+                                  axialCentre[2] + neighbourBDif[2])
+                    neighbourBDoubled = (neighbourB[0], neighbourB[1])
+
+                    if self.inOpponentHex(neighbourADoubled):
+                        if neighbourADoubled in self.hexTaken:
+                            removeHex.add(pos)
+                            removeHex.add(neighbourADoubled)
+                    if self.inOpponentHex(neighbourBDoubled):
+                        captureHex = (axialCentre[0] + axialDif[0] + neighbourBDif[0],
+                                      axialCentre[1] + axialDif[1] + neighbourBDif[1])
+                        if captureHex in self.hexTaken:
+                            removeHex.add(pos)
+                            removeHex.add(neighbourBDoubled)
+            else:
+                if pos in self.hexTaken:
+                    axialPos = (pos[0], pos[1], -pos[0] - pos[1])
+                    axialDif = (
+                        axialPos[0] - axialCentre[0], axialPos[1] - axialCentre[1], axialPos[2] - axialCentre[2])
+
+                    neighbourADif = (axialDif[1], axialDif[2], axialDif[0])
+                    neighbourA = (axialCentre[0] + neighbourADif[0], axialCentre[1] + neighbourADif[1],
+                                  axialCentre[2] + neighbourADif[2])
+                    neighbourADoubled = (neighbourA[0], neighbourA[1])
+
+                    neighbourBDif = (
+                        axialDif[0] + neighbourADif[0], axialDif[1] + neighbourADif[1], axialDif[2] + neighbourADif[2])
+                    neighbourB = (axialCentre[0] + neighbourBDif[0], axialCentre[1] + neighbourBDif[1],
+                                  axialCentre[2] + neighbourBDif[2])
+                    neighbourBDoubled = (neighbourB[0], neighbourB[1])
+
+                    if neighbourADoubled in self.hexTaken:
+                        if self.inOpponentHex(neighbourBDoubled):
+                            removeHex.add(pos)
+                            removeHex.add(neighbourADoubled)
+                    if neighbourBDoubled in self.hexTaken:
+                        captureHex = (axialCentre[0] + axialDif[0] + neighbourBDif[0],
+                                      axialCentre[1] + axialDif[1] + neighbourBDif[1])
+                        if self.inOpponentHex(captureHex):
+                            removeHex.add(pos)
+                            removeHex.add(neighbourBDoubled)
+
         return removeHex
 
     def hexInBoard(self, hex):
         return (0 <= hex[0] < self.n and 0<= hex[1] < self.n)
 
+    def inOpponentHex(self, hex):
+        if not (hex in self.hexTaken or hex in self.possibleMoves) and self.hexInBoard(hex):
+            return True
+        return False
 
     def evalFunction(self, hex):
         """
