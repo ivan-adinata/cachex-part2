@@ -53,7 +53,7 @@ class Player:
                     chosen = self.getHex(start, 0)
         else:
             chosen = max(self.possibleMoves, key=lambda hex: hex.evalScore)
-        return ("PLACE", chosen.x, chosen.y)
+        return ("PLACE", chosen.r, chosen.q)
     
     def turn(self, player, action):
         """
@@ -80,26 +80,30 @@ class Player:
                 self.opponentMove = self.lastMove
             elif action[0] == 'PLACE':
                 self.opponentMove = (action[1], action[2])
-                self.possibleMoves = [hex for hex in self.possibleMoves if (hex.x, hex.y) != self.opponentMove]
+                self.possibleMoves = [hex for hex in self.possibleMoves if (hex.r, hex.q) != self.opponentMove]
+                # Remove hexes if there are any captures
                 for hex in self.capture(self.opponentMove):
+                    print()
+                    print("REMOVE = ", hex)
+                    print()
                     self.remove(hex)
         
         # Update evalScores in possibleMoves
         for hex in self.possibleMoves:
             hex.evalScore = self.evalFunction(hex)
 
-    def getHex(self, x, y):
+    def getHex(self, r, q):
         for hex in self.possibleMoves:
-            if x == hex.x and y == hex.y:
+            if r == hex.r and q == hex.q:
                 return hex
 
     def place(self, coordinate):
         self.hexTaken.append(coordinate)
         # Remove hex in possibleMoves
         # self.possibleMoves.remove(self.getHex(coordinate[0], coordinate[1]))
-        self.possibleMoves = [hex for hex in self.possibleMoves if (hex.x, hex.y) != coordinate]
-        for hex in self.possibleMoves:
-            print((hex.x, hex.y))
+        self.possibleMoves = [hex for hex in self.possibleMoves if (hex.r, hex.q) != coordinate]
+        # for hex in self.possibleMoves:
+        #     print((hex.r, hex.q))
 
     def steal(self, coordinate):
         new_coordinate = (coordinate[1], coordinate[0])
@@ -155,26 +159,25 @@ class Player:
         COL_WEIGHT = 0.33
         ROW_WEIGHT = 0.33
         CAPTURE_WEIGHT = 0.33
-        return (COL_WEIGHT * self.heuristic1(hex)) + (ROW_WEIGHT * self.heuristic2(hex)) + \
+        return (COL_WEIGHT * (1 / (self.heuristic1(hex) + 1))) + (ROW_WEIGHT * self.heuristic2(hex)) + \
             (CAPTURE_WEIGHT * self.captureHeuristic(hex))
 
     def heuristic1(self, hex):
         """
         Calculates the distance from a hex to the average position of tokens
         """
+        if len(self.hexTaken) == 0:
+            return 0
+            
         total = 0
         if self.player == Player.FIRST_PLAYER:
             for coordinate in self.hexTaken:
                 total += coordinate[1]
-            if len(self.hexTaken) == 0:
-                return 0
-            return hex.y - (total / len(self.hexTaken))
+            return abs(hex.q - (total / len(self.hexTaken)))
         else:
             for coordinate in self.hexTaken:
                 total += coordinate[0]
-            if len(self.hexTaken) == 0:
-                return 0
-            return hex.x - (total / len(self.hexTaken))
+            return abs(hex.r - (total / len(self.hexTaken)))
 
     def heuristic2(self, hex):
         """
@@ -183,11 +186,11 @@ class Player:
         tokens = 0
         if self.player == Player.FIRST_PLAYER:
             for coordinate in self.hexTaken:
-                if coordinate[0] == hex.x:
+                if coordinate[0] == hex.r:
                     tokens += 1
         else:
             for coordinate in self.hexTaken:
-                if coordinate[1] == hex.y:
+                if coordinate[1] == hex.q:
                     tokens += 1
 
         # Inverse relationship; the less tokens, the higher the value
@@ -197,7 +200,7 @@ class Player:
         """
         Calculates the number of enemy tokens that can be captured by placing a token
         """
-        return len(self.capture((hex.x, hex.y)))
+        return len(self.capture((hex.r, hex.q)))
 
     def blockingHeuristic(self, hex):
         # might have to track enemy path
