@@ -70,7 +70,6 @@ class Player:
                 self.place(self.lastMove)
             self.numTurn += 1
         else:
-            self.opponentMove = action
             if action[0] == "STEAL":
                 self.remove(self.lastMove)
             elif action[0] == 'PLACE':
