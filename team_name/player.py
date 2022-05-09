@@ -19,6 +19,7 @@ class Player:
         self.numTurns = 0
         self.opponentMove = ()
         self.lastMove = ()
+        self.opponentTaken = []
         self.hexTaken = []
         self.possibleMoves = {}
 
@@ -63,6 +64,7 @@ class Player:
         if self.player == player:
             if action[0] == 'STEAL':
                 self.possibleMoves[self.opponentMove] = None
+                self.opponentTaken.remove(self.opponentMove)
                 invertedHex = self.invert(self.opponentMove)
                 self.lastMove = invertedHex
                 self.possibleMoves.pop(invertedHex)
@@ -72,7 +74,10 @@ class Player:
                 self.possibleMoves.pop(self.lastMove)
                 self.hexTaken.append(self.lastMove)
                 # Add capture hexes to possibleMoves
+                print("PLACE CAPTURE FOR PLAYER")
                 for hex in self.capture(self.lastMove, player):
+                    print(f'HEX = ({hex[0]}, {hex[1]})')
+                    self.opponentTaken.remove(hex)
                     self.possibleMoves[hex] = None
             self.numTurns += 1
         else:
@@ -82,19 +87,20 @@ class Player:
                 invertedHex = self.invert(self.lastMove)
                 self.opponentMove = invertedHex
                 self.possibleMoves.pop(invertedHex)
+                self.opponentTaken.append(invertedHex)
             elif action[0] == 'PLACE':
                 self.opponentMove = (action[1], action[2])
                 self.possibleMoves.pop(self.opponentMove)
+                self.opponentTaken.append(self.opponentMove)
+                print("PLACE CAPTURE FOR OPPONENT")
                 for hex in self.capture(self.opponentMove, player):
-                    print()
-                    print("REMOVE = ", hex)
-                    print()
+                    print(f'HEX = ({hex[0]}, {hex[1]})')
                     self.hexTaken.remove(hex)
                     self.possibleMoves[hex] = None
         
         # Update evalScores in possibleMoves
         for hex in self.possibleMoves.keys():
-            self.possibleMoves[hex] = self.evalFunction(hex)
+            self.possibleMoves[hex] = self.evalFunction(hex, player)
 
     def invert(self, coordinate):
         return (coordinate[1], coordinate[0])
@@ -105,15 +111,14 @@ class Player:
         """
         removeHex = set()
         axialCentre = (coordinate[0], coordinate[1], -coordinate[0] - coordinate[1])
-
         for comb in permutations([-1, 0, 1], 2):
             pos = (coordinate[0] + comb[0], coordinate[1] + comb[1])
 
             if self.player == player:
-                if self.inOpponentHex(pos):
+                if pos in self.opponentTaken:
                     axialPos = (pos[0], pos[1], -pos[0] - pos[1])
                     axialDif = (
-                    axialPos[0] - axialCentre[0], axialPos[1] - axialCentre[1], axialPos[2] - axialCentre[2])
+                        axialPos[0] - axialCentre[0], axialPos[1] - axialCentre[1], axialPos[2] - axialCentre[2])
 
                     neighbourADif = (axialDif[1], axialDif[2], axialDif[0])
                     neighbourA = (axialCentre[0] + neighbourADif[0], axialCentre[1] + neighbourADif[1],
@@ -121,19 +126,28 @@ class Player:
                     neighbourADoubled = (neighbourA[0], neighbourA[1])
 
                     neighbourBDif = (
-                    axialDif[0] + neighbourADif[0], axialDif[1] + neighbourADif[1], axialDif[2] + neighbourADif[2])
+                        axialDif[0] + neighbourADif[0], axialDif[1] + neighbourADif[1], axialDif[2] + neighbourADif[2])
                     neighbourB = (axialCentre[0] + neighbourBDif[0], axialCentre[1] + neighbourBDif[1],
                                   axialCentre[2] + neighbourBDif[2])
                     neighbourBDoubled = (neighbourB[0], neighbourB[1])
 
-                    if self.inOpponentHex(neighbourADoubled):
-                        if neighbourADoubled in self.hexTaken:
+                    print(f'pos = ({pos[0]}, {pos[1]})')
+                    print(f'neighA = ({neighbourA[0]}, {neighbourA[1]})')
+                    print(f'neighB = ({neighbourB[0]}, {neighbourBDoubled[1]})')
+
+                    if neighbourADoubled in self.opponentTaken:
+                        print("TEST phase")
+                        if neighbourBDoubled in self.hexTaken:
+                            print(f'REMOVE A')
                             removeHex.add(pos)
                             removeHex.add(neighbourADoubled)
-                    if self.inOpponentHex(neighbourBDoubled):
+                    if neighbourBDoubled in self.opponentTaken:
+                        print("TEST phase2")
                         captureHex = (axialCentre[0] + axialDif[0] + neighbourBDif[0],
                                       axialCentre[1] + axialDif[1] + neighbourBDif[1])
+                        print(f'capture = ({captureHex[0]}, {captureHex[1]})')
                         if captureHex in self.hexTaken:
+                            print('REMOVE B')
                             removeHex.add(pos)
                             removeHex.add(neighbourBDoubled)
             else:
@@ -154,13 +168,13 @@ class Player:
                     neighbourBDoubled = (neighbourB[0], neighbourB[1])
 
                     if neighbourADoubled in self.hexTaken:
-                        if self.inOpponentHex(neighbourBDoubled):
+                        if neighbourBDoubled in self.opponentTaken:
                             removeHex.add(pos)
                             removeHex.add(neighbourADoubled)
                     if neighbourBDoubled in self.hexTaken:
                         captureHex = (axialCentre[0] + axialDif[0] + neighbourBDif[0],
                                       axialCentre[1] + axialDif[1] + neighbourBDif[1])
-                        if self.inOpponentHex(captureHex):
+                        if captureHex in self.opponentTaken:
                             removeHex.add(pos)
                             removeHex.add(neighbourBDoubled)
         return removeHex
@@ -169,17 +183,17 @@ class Player:
         return (0 <= hex[0] < self.n and 0<= hex[1] < self.n)
 
     def inOpponentHex(self, hex):
-        return not (hex in self.hexTaken or hex in self.possibleMoves) and self.hexInBoard(hex)
+        return not (hex in self.hexTaken) or not (hex in self.possibleMoves) and self.hexInBoard(hex)
 
-    def evalFunction(self, hex):
+    def evalFunction(self, hex, player):
         """
         Updates the evaluation score for a hex using weighted features
         """
-        COL_WEIGHT = 0.33
-        ROW_WEIGHT = 0.33
-        CAPTURE_WEIGHT = 0.33
+        COL_WEIGHT = 0.10
+        ROW_WEIGHT = 0.10
+        CAPTURE_WEIGHT = 0.80
         return (COL_WEIGHT * (1 / (self.heuristic1(hex) + 1))) + (ROW_WEIGHT * self.heuristic2(hex)) + \
-            (CAPTURE_WEIGHT * self.captureHeuristic(hex))
+            (CAPTURE_WEIGHT * self.captureHeuristic(hex, player))
 
     def heuristic1(self, hex):
         """
@@ -215,11 +229,11 @@ class Player:
         # Inverse relationship; the less tokens, the higher the value
         return self.n / (tokens + 1)
 
-    def captureHeuristic(self, hex):
+    def captureHeuristic(self, hex, player):
         """
         Calculates the number of enemy tokens that can be captured by placing a token
         """
-        return len(self.capture(hex, self.player))
+        return len(self.capture(hex, player))
 
     def blockingHeuristic(self, hex):
         # might have to track enemy path
