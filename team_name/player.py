@@ -1,7 +1,6 @@
-from os import remove
 import random
 from itertools import permutations
-from team_name.hex import Hex
+
 
 class Player:
     FIRST_PLAYER = "red"
@@ -27,8 +26,6 @@ class Player:
             for column in range(n):
                 # Value represents eval function
                 self.possibleMoves[(row, column)] = None
-        if n % 2 != 0:
-            self.possibleMoves.pop((self.n // 2 , self.n // 2))
 
     def action(self):
         """
@@ -37,14 +34,11 @@ class Player:
         """
 
         if self.numTurns == 0:
-            if self.n % 2 != 0:
-                self.possibleMoves[(self.n // 2, self.n // 2)] = None
             # Choose random position along start edge
             start = random.randint(0, self.n - 1)
             if self.player == Player.FIRST_PLAYER:
                 chosen = (0, start)
             else:
-                # print(self.opponentMove)
                 if self.opponentMove[1] == 0:
                     return ("STEAL",)
                 else:
@@ -169,16 +163,13 @@ class Player:
                         if self.inOpponentHex(captureHex):
                             removeHex.add(pos)
                             removeHex.add(neighbourBDoubled)
-
         return removeHex
 
     def hexInBoard(self, hex):
         return (0 <= hex[0] < self.n and 0<= hex[1] < self.n)
 
     def inOpponentHex(self, hex):
-        if not (hex in self.hexTaken or hex in self.possibleMoves) and self.hexInBoard(hex):
-            return True
-        return False
+        return not (hex in self.hexTaken or hex in self.possibleMoves) and self.hexInBoard(hex)
 
     def evalFunction(self, hex):
         """
