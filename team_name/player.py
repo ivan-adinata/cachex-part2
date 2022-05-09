@@ -37,12 +37,12 @@ class Player:
         """
 
         if self.numTurns == 0:
+            if self.n % 2 != 0:
+                self.possibleMoves[(self.n // 2, self.n // 2)] = None
             # Choose random position along start edge
             start = random.randint(0, self.n - 1)
             if self.player == Player.FIRST_PLAYER:
                 chosen = (0, start)
-                if self.n % 2 != 0:
-                    self.possibleMoves[(self.n//2 , self.n//2)] = None
             else:
                 # print(self.opponentMove)
                 if self.opponentMove[1] == 0:
@@ -85,7 +85,7 @@ class Player:
             if action[0] == "STEAL":
                 self.possibleMoves[self.lastMove] = None
                 self.hexTaken.remove(self.lastMove)
-                invertedHex = self.invert(self.opponentMove)
+                invertedHex = self.invert(self.lastMove)
                 self.opponentMove = invertedHex
                 self.possibleMoves.pop(invertedHex)
             elif action[0] == 'PLACE':
