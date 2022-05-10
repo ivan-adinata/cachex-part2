@@ -74,9 +74,7 @@ class Player:
                 self.possibleMoves.pop(self.lastMove)
                 self.hexTaken.append(self.lastMove)
                 # Add capture hexes to possibleMoves
-                print("PLACE CAPTURE FOR PLAYER")
                 for hex in self.capture(self.lastMove, player):
-                    print(f'HEX = ({hex[0]}, {hex[1]})')
                     self.opponentTaken.remove(hex)
                     self.possibleMoves[hex] = None
             self.numTurns += 1
@@ -92,9 +90,7 @@ class Player:
                 self.opponentMove = (action[1], action[2])
                 self.possibleMoves.pop(self.opponentMove)
                 self.opponentTaken.append(self.opponentMove)
-                print("PLACE CAPTURE FOR OPPONENT")
                 for hex in self.capture(self.opponentMove, player):
-                    print(f'HEX = ({hex[0]}, {hex[1]})')
                     self.hexTaken.remove(hex)
                     self.possibleMoves[hex] = None
 
@@ -131,23 +127,14 @@ class Player:
                                   axialCentre[2] + neighbourBDif[2])
                     neighbourBDoubled = (neighbourB[0], neighbourB[1])
 
-                    print(f'pos = ({pos[0]}, {pos[1]})')
-                    print(f'neighA = ({neighbourA[0]}, {neighbourA[1]})')
-                    print(f'neighB = ({neighbourB[0]}, {neighbourBDoubled[1]})')
-
                     if neighbourADoubled in self.opponentTaken:
-                        print("TEST phase")
                         if neighbourBDoubled in self.hexTaken:
-                            print(f'REMOVE A')
                             removeHex.add(pos)
                             removeHex.add(neighbourADoubled)
                     if neighbourBDoubled in self.opponentTaken:
-                        print("TEST phase2")
                         captureHex = (axialCentre[0] + axialDif[0] + neighbourBDif[0],
                                       axialCentre[1] + axialDif[1] + neighbourBDif[1])
-                        print(f'capture = ({captureHex[0]}, {captureHex[1]})')
                         if captureHex in self.hexTaken:
-                            print('REMOVE B')
                             removeHex.add(pos)
                             removeHex.add(neighbourBDoubled)
             else:
