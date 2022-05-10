@@ -120,23 +120,15 @@ class Player:
                                   axialCentre[2] + neighbourBDif[2])
                     neighbourBDoubled = (neighbourB[0], neighbourB[1])
 
-                    print(f'pos = ({pos[0]}, {pos[1]})')
-                    print(f'neighA = ({neighbourA[0]}, {neighbourA[1]})')
-                    print(f'neighB = ({neighbourB[0]}, {neighbourBDoubled[1]})')
 
                     if neighbourADoubled in self.opponentTaken:
-                        print("TEST phase")
                         if neighbourBDoubled in self.hexTaken:
-                            print(f'REMOVE A')
                             removeHex.add(pos)
                             removeHex.add(neighbourADoubled)
                     if neighbourBDoubled in self.opponentTaken:
-                        print("TEST phas 2")
                         captureHex = (axialCentre[0] + axialDif[0] + neighbourBDif[0],
                                       axialCentre[1] + axialDif[1] + neighbourBDif[1])
-                        print(f'capture = ({captureHex[0]}, {captureHex[1]})')
                         if captureHex in self.hexTaken:
-                            print(f'REMOVE B')
                             removeHex.add(pos)
                             removeHex.add(neighbourBDoubled)
             else:
