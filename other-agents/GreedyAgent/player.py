@@ -23,9 +23,10 @@ class Player:
         self.hexTaken = []
         self.possibleMoves = {}
 
+        # Build possibleMoves dictionary
         for row in range(n):
             for column in range(n):
-                # Value represents eval function
+                # Key rerpresents coordinates, Value represents eval function
                 self.possibleMoves[(row, column)] = None
 
     def action(self):
@@ -33,19 +34,19 @@ class Player:
         Called at the beginning of your turn. Based on the current state
         of the game, select an action to play.
         """
-
         if self.numTurns == 0:
-            # Choose random position along start edge
-            start = random.randint(0, self.n - 1)
+            # Choose random coordinate along middle hexes
+            start = random.choice([i for i in range(self.n - 1) if i != self.n // 2])
             if self.player == Player.FIRST_PLAYER:
-                chosen = (0, start)
+                chosen = (self.n // 2, start)
             else:
-                if self.opponentMove[1] == 0:
+                # Steal if the opponent places on one of our middle hexes
+                if self.opponentMove[1] == self.n // 2:
                     return ("STEAL",)
                 else:
-                    chosen = (start, 0)
+                    chosen = (start, self.n // 2)
         else:
-            # chosen = max(self.possibleMoves, key=lambda hex: hex[2])
+            # Choose hex with highest evaluation function
             chosen = max(self.possibleMoves, key=self.possibleMoves.get)
         return ("PLACE", chosen[0], chosen[1])
 
@@ -61,6 +62,7 @@ class Player:
         above. However, the referee has validated it at this point.
         """
 
+        # Update variables based on action
         if self.player == player:
             if action[0] == 'STEAL':
                 self.possibleMoves[self.opponentMove] = None
@@ -99,6 +101,9 @@ class Player:
             self.possibleMoves[hex] = self.evalFunction(hex, player)
 
     def invert(self, coordinate):
+        """
+        Finds the inverse hex across the main line of symmetry
+        """
         return (coordinate[1], coordinate[0])
 
     def capture(self, coordinate, player):
@@ -167,24 +172,35 @@ class Player:
         return removeHex
 
     def hexInBoard(self, hex):
+        """
+        Checks if given hex is in the board
+        """
         return (0 <= hex[0] < self.n and 0 <= hex[1] < self.n)
 
     def inOpponentHex(self, hex):
+        """
+        Checks if given hex is taken by opponent
+        """
         return not (hex in self.hexTaken) or not (hex in self.possibleMoves) and self.hexInBoard(hex)
 
     def evalFunction(self, hex, player):
         """
         Updates the evaluation score for a hex using weighted features
         """
-        COL_WEIGHT = 0.10
-        ROW_WEIGHT = 0.10
-        CAPTURE_WEIGHT = 0.80
-        return (COL_WEIGHT * (1 / (self.heuristic1(hex) + 1))) + (ROW_WEIGHT * self.heuristic2(hex)) + \
-               (CAPTURE_WEIGHT * self.captureHeuristic(hex, player))
+        # Weights add up to 1
+        DISTANCE_WEIGHT = 0.17
+        PATH_WEIGHT = 0.17
+        CAPTURE_WEIGHT = 0.5
+        BLOCKING_WEIGHT = 0.17
+        
+        return (DISTANCE_WEIGHT * (1 / (self.distanceHeuristic(hex) + 1))) + \
+                (PATH_WEIGHT * self.pathHeuristic(hex)) + \
+                (CAPTURE_WEIGHT * self.captureHeuristic(hex, player)) + \
+                (BLOCKING_WEIGHT * self.blockingHeuristic(hex))
 
-    def heuristic1(self, hex):
+    def distanceHeuristic(self, hex):
         """
-        Calculates the distance from a hex to the average position of tokens
+        Calculates the distance from a hex to the average column position of tokens
         """
         if len(self.hexTaken) == 0:
             return 0
@@ -199,7 +215,7 @@ class Player:
                 total += coordinate[0]
             return abs(hex[0] - (total / len(self.hexTaken)))
 
-    def heuristic2(self, hex):
+    def pathHeuristic(self, hex):
         """
         Calculates the value of placing a token in a row
         """
@@ -223,5 +239,23 @@ class Player:
         return len(self.capture(hex, player))
 
     def blockingHeuristic(self, hex):
-        # might have to track enemy path
-        return
+        """
+        Finds the relative row distance of the hex to all enemy hexes and the number of
+        enemy tokens in the most frequent row
+        """
+        freq = 0
+        total_distance = 0
+        if self.player == Player.FIRST_PLAYER:
+            for opponent in self.opponentTaken:
+                distance = hex[0] - opponent[0]
+                total_distance += abs(distance)
+                if hex[0] == opponent[0]:
+                    freq += 1
+        else:
+            for opponent in self.opponentTaken:
+                distance = hex[1] - opponent[1]
+                total_distance += abs(distance)
+                if hex[1] == opponent[1]:
+                    freq += 1
+
+        return freq / (total_distance + 1)

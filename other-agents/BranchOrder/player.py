@@ -1,4 +1,3 @@
-from hashlib import new
 from math import inf
 import random
 from itertools import permutations
@@ -119,10 +118,6 @@ class Player:
         """
         newState = [state[0].copy(), state[1].copy(), state[2].copy()]
 
-        print("ORIGINAL:")
-        for i in newState[2]:
-            print('old Possible move: ', i, newState[2][i])
-
         # Add changes to the state
         if self.player == Player.FIRST_PLAYER:
             player = Player.FIRST_PLAYER if isMax else Player.SECOND_PLAYER
@@ -141,10 +136,6 @@ class Player:
                 newState[0].remove(coordinates)
                 newState[2][coordinates] = 0
         newState[2].pop(hex)
-
-        print("NEW:")
-        for i in newState[2]:
-            print('new Possible move: ', i)
 
         return newState
 
@@ -182,7 +173,6 @@ class Player:
         """
         Returns a list of hexes to be removed as a result of capturing
         """
-
         removeHex = set()
         axialCentre = (coordinate[0] + 0, coordinate[1] + 0, -coordinate[0] - coordinate[1] + 0)
         for comb in permutations([-1, 0, 1], 2):
@@ -291,11 +281,9 @@ class Player:
         if self.player == Player.FIRST_PLAYER:
             for coordinate in hexTaken:
                 freq[coordinate[0]] += 1
-                # coordinates.append(coordinate[0])
         else:
             for coordinate in hexTaken:
                 freq[coordinate[1]] += 1
-                # coordinates.append(coordinate[1])
         return stdev(freq)
 
     def captureHeuristic(self, opponentTaken):
